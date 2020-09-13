@@ -5,6 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:sounds/sounds.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:rflutter_alert/rflutter_alert.dart';
+import 'package:path/path.dart';
+
+import 'SoundManager.dart';
 
 void main() {
   runApp(MyApp());
@@ -27,197 +32,82 @@ class MyApp extends StatelessWidget {
             appBar: AppBar(
               title: Text('Welcome to Flutter'),
             ),
-            body: Container(
-              padding: EdgeInsets.symmetric(vertical: 30.0),
-              child: AudioPlayer(),
-            )));
-  }
-}
-
-class AudioPlayer extends StatefulWidget {
-  @override
-  _AudioPlayerState createState() => _AudioPlayerState();
-}
-
-class _AudioPlayerState extends State<AudioPlayer> {
-  var _track = Track.fromAsset('assets/sample1.aac');
-  var _player = SoundPlayer.noUI();
-  var _recorder = SoundRecorder();
-  var _isPlaying =
-      false; // player.isPlaying is async, so this workaround will update widget state properly
-
-
-  Future<void> _requestPermission(Permission permission) async {
-    await permission.request();
-  }
-
-  Future<void> _saveRecording(String tempRecordingPath, String filename) async {
-    await _requestPermission(Permission.storage);
-    String dir = (await getExternalStorageDirectory()).path;
-    String subDir = 'BestTakeRecordings';
-    print('$dir');
-    print('$dir/$subDir/$filename');
-    await Directory('$dir/$subDir').create();
-    await File(tempRecordingPath).copy('$dir/$subDir/$filename');
-    await File(tempRecordingPath).delete();
-  }
-
-
-  void _play() {
-    if (_player.isStopped) {
-      _player = SoundPlayer.noUI();
-    }
-    if (_player.isPaused) {
-      _player.resume();
-    } else {
-      _player.play(_track);
-    }
-    _isPlaying = true;
-  }
-
-  void _pause() {
-    if (_isPlaying) {
-      _player.pause();
-      _isPlaying = false;
-    }
-  }
-
-  void _stop() {
-    _pause();
-    _player.stop();
-    _player.release();
-    setState(() {
-      // TODO
-    });
-  }
-
-  void _startRecording() async {
-    if (await Permission.microphone.request().isGranted) {
-      var recording = Track.tempFile(WellKnownMediaFormats.adtsAac);
-      var recTrack =
-          Track.fromFile(recording, mediaFormat: WellKnownMediaFormats.adtsAac);
-
-      _recorder.onStopped = ({wasUser}) {
-        _recorder.release();
-        _saveRecording(recording, 'test_recording.aac');
-
-      };
-      _recorder.record(recTrack);
-    }
-    else {
-      await _requestPermission(Permission.microphone);
-      _startRecording();
-    }
-  }
-
-  void _stopRecording() {
-    _recorder.stop();
-  }
-
-  Widget buildTimeStamp() {
-    return Container(
-        padding: const EdgeInsets.only(top: 80, bottom: 80),
-        child: Center(
-          child: Text(
-            _player.currentPosition.toString(),
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 40,
-            ),
-          ),
-        ));
-  }
-
-  Widget playerControls() {
-    return Expanded(
-        child: Align(
-            alignment: Alignment.bottomCenter,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            body: Column(
               children: [
-                _buildCircleButton(
-                    Icon(Icons.fiber_manual_record, color: Colors.red),
-                    _startRecording),
-                _buildCircleButton(
-                    Icon(_isPlaying ? Icons.pause : Icons.play_arrow,
-                        color: Colors.black), () {
-                  setState(() {
-                    _isPlaying ? _pause() : _play();
-                  });
-                }),
-                _buildCircleButton(
-                    Icon(Icons.stop, color: Colors.black), _stop),
-                _buildCircleButton(
-                    Icon(Icons.stop, color: Colors.red), _stopRecording),
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 30.0),
+                  child: SoundManager(),
+                ),
+                Expanded(
+                    child: Container(
+                  child: RecordingBrowser(),
+                )),
               ],
             )));
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(children: [buildTimeStamp(), playerControls()]);
-  }
-
-  Widget _buildCircleButton(Icon icon, Function onPressedAction) {
-    return CircleAvatar(
-        radius: 30,
-        backgroundColor: Theme.of(context).accentColor,
-        child: IconButton(
-            splashColor: Theme.of(context).accentColor,
-            highlightColor: Theme.of(context).accentColor,
-            icon: icon,
-            onPressed: onPressedAction));
-  }
 }
 
-/*
 class RecordingBrowser extends StatefulWidget {
   @override
   _RecordingBrowserState createState() => _RecordingBrowserState();
 }
 
 class _RecordingBrowserState extends State<RecordingBrowser> {
+  final _biggerFont = TextStyle(fontSize: 18.0);
 
-  Widget _buildRecordings() {
-    return ListView.builder(
-        padding: EdgeInsets.all(16.0),
-        itemBuilder:  (context, i) {
-          if (i.isOdd) return Divider();
-
-          final index = i ~/ 2;
-          if (index >= _suggestions.length) {
-            _suggestions.addAll(generateWordPairs().take(10));
-          }
-          return _buildRow(_suggestions[index]);
-        });
-  }
-
-  Widget _buildRow(WordPair pair) {
-    final alreadySaved = _saved.contains(pair);
-    return ListTile(
-      title: Text(
-        pair.asPascalCase,
-        style: _biggerFont,
-      ),
-      trailing: Icon(
-        alreadySaved ? Icons.favorite : Icons.favorite_border,
-        color: alreadySaved ? Colors.red : null,
-      ),
-      onTap: () {
-        setState(() {
-          if (alreadySaved) {
-            _saved.remove(pair);
-          } else {
-            _saved.add(pair);
-          }
-        });
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Container();
+    return _buildRecordings();
+  }
+
+  Future<List<FileSystemEntity>> _recordingDirContents() async {
+    var dir;
+    await SoundManager().getRecordingDirectory().then((value) => dir = value);
+    var files = Directory.fromUri(Uri.parse(dir)).listSync();
+    return files;
+  }
+
+  Widget _buildRecordings() {
+    return FutureBuilder(
+        future: _recordingDirContents(),
+        builder: (BuildContext context, AsyncSnapshot snapshot) {
+          switch (snapshot.connectionState) {
+            case ConnectionState.none:
+            case ConnectionState.waiting:
+              return new Text('loading...');
+            default:
+              if (snapshot.hasError)
+                return new Text('Error: ${snapshot.error}');
+              else
+                return createListView(context, snapshot);
+          }
+        });
+  }
+
+  Widget createListView(BuildContext context, AsyncSnapshot snapshot) {
+    List<FileSystemEntity> files = snapshot.data;
+    return new ListView.builder(
+      itemCount: files.length,
+      itemBuilder: (BuildContext context, int index) {
+        var file = files[index];
+        return new Column(
+          children: <Widget>[
+            new ListTile(
+                title: new Text(basename(file.path)),
+                trailing: FutureBuilder(
+                    future: SoundManager().getDurationFromPath(file.path),
+                    initialData: "00:00",
+                    builder:
+                        (BuildContext context, AsyncSnapshot<String> text) {
+                      return text.data != null ? Text(text.data) : Text('hej');
+                    })),
+            new Divider(
+              height: 2.0,
+            ),
+          ],
+        );
+      },
+    );
   }
 }
-*/
