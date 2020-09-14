@@ -10,30 +10,33 @@ import 'package:rflutter_alert/rflutter_alert.dart';
 
 class SoundManager extends StatefulWidget {
   @override
-  _SoundManagerState createState() => _SoundManagerState();
+  SoundManagerState createState() => SoundManagerState();
 
   Future<String> getDurationFromPath(String path) async {
-      var track = Track.fromFile(path, mediaFormat: WellKnownMediaFormats.adtsAac);
-      String duration;
-      await track.duration.then((value) => duration = value.toString().substring(0,7));
-      return duration;
+    var track =
+        Track.fromFile(path, mediaFormat: WellKnownMediaFormats.adtsAac);
+    String duration;
+    await track.duration
+        .then((value) => duration = value.toString().substring(0, 7));
+    return duration;
   }
 
   Future<String> getRecordingDirectory() async {
     requestPermission(Permission.storage);
-    String rootDir;
-    if (Platform.isIOS) {
-      rootDir = (await getApplicationDocumentsDirectory()).path;
-    } else {
-      rootDir = (await getExternalStorageDirectory()).path;
-    }
-    String dir = rootDir + '/BestTakeRecordings';
 
     if (await Permission.storage.request().isGranted) {
-      if (await Directory(dir).exists()) {
-        await Directory(dir).create();
-        return Future.value(dir);
+      String rootDir;
+      if (Platform.isIOS) {
+        rootDir = (await getApplicationDocumentsDirectory()).path;
+      } else {
+        rootDir = (await getExternalStorageDirectory()).path;
       }
+      String dir = rootDir + '/BestTakeRecordings';
+
+      if (!(await Directory(dir).exists())) {
+        await Directory(dir).create();
+      }
+      return Future.value(dir);
     } else {
       Fluttertoast.showToast(
           msg:
@@ -53,13 +56,10 @@ class SoundManager extends StatefulWidget {
   }
 }
 
-class _SoundManagerState extends State<SoundManager> {
-  var _track = Track.fromAsset('assets/sample1.aac');
-  var _player = SoundPlayer.noUI();
-  var _isPlaying =
-      false; // player.isPlaying is async, so this workaround will update widget state properly
-
+class SoundManagerState extends State<SoundManager> {
   var _recorder = SoundRecorder();
+  var _isRecording = false;
+  var _recordingInitialized = false;
 
   Future<bool> _saveRecording(String tempRecordingPath, String filename) async {
     filename += '.aac';
@@ -133,63 +133,61 @@ class _SoundManagerState extends State<SoundManager> {
     return _fieldRes;
   }
 
-  void _play() {
-    if (_player.isStopped) {
-      _player = SoundPlayer.noUI();
-    }
-    if (_player.isPaused) {
-      _player.resume();
+  Future<void> _startRecording() async {
+    if (_recorder.isPaused) {
+      await _recorder.resume();
+      setState(() {
+        _isRecording = true;
+      });
     } else {
-      _player.play(_track);
+      _recorder = SoundRecorder();
+      if (await Permission.microphone.request().isGranted) {
+        var recording = Track.tempFile(WellKnownMediaFormats.adtsAac);
+        var recTrack = Track.fromFile(recording,
+            mediaFormat: WellKnownMediaFormats.adtsAac);
+        _recorder.onStopped = ({wasUser}) {
+          _saveRecordingAlert(recording);
+          _recorder.release();
+          _recordingInitialized = false;
+        };
+        await _recorder.record(recTrack);
+        _recordingInitialized = true;
+        setState(() {
+          _isRecording = true;
+        });
+      } else {
+        await SoundManager().requestPermission(Permission.microphone);
+        Fluttertoast.showToast(
+            msg:
+                "Failed to start recording: permission to access microphone denied.",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.CENTER,
+            timeInSecForIosWeb: 3,
+            backgroundColor: Colors.red,
+            textColor: Colors.white,
+            fontSize: 16.0);
+      }
     }
-    _isPlaying = true;
   }
 
-  void _pause() {
-    if (_isPlaying) {
-      _player.pause();
-      _isPlaying = false;
+  Future<void> _pauseRecording() async {
+    if (_recorder.isRecording) {
+      await _recorder.pause();
+      setState(() {
+        _isRecording = false;
+      });
     }
   }
 
-  void _stop() {
-    _pause();
-    _player.stop();
-    _player.release();
+  Future<void> _stopRecording() async {
+    if (_recorder.isPaused) {
+      // Can't stop recorder while paused
+      await _recorder.resume();
+    }
+    await _recorder.stop();
     setState(() {
-      // TODO
+      _isRecording = false;
     });
-  }
-
-  void _startRecording() async {
-    _recorder = SoundRecorder();
-    if (await Permission.microphone.request().isGranted) {
-      var recording = Track.tempFile(WellKnownMediaFormats.adtsAac);
-      var recTrack =
-          Track.fromFile(recording, mediaFormat: WellKnownMediaFormats.adtsAac);
-
-      _recorder.onStopped = ({wasUser}) {
-        _saveRecordingAlert(recording);
-        _recorder.release();
-      };
-
-      _recorder.record(recTrack);
-    } else {
-      await SoundManager().requestPermission(Permission.microphone);
-      Fluttertoast.showToast(
-          msg:
-              "Failed to start recording: permission to access microphone denied.",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.CENTER,
-          timeInSecForIosWeb: 1,
-          backgroundColor: Colors.red,
-          textColor: Colors.white,
-          fontSize: 16.0);
-    }
-  }
-
-  void _stopRecording() {
-    _recorder.stop();
   }
 
   Widget buildTimeStamp() {
@@ -197,7 +195,9 @@ class _SoundManagerState extends State<SoundManager> {
         padding: const EdgeInsets.only(top: 80, bottom: 80),
         child: Center(
           child: Text(
-            _player.currentPosition.toString(),
+            (_recorder.duration.toString().length > 6)
+                ? _recorder.duration.toString().substring(0, 7)
+                : '0:00:00',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 40,
@@ -206,21 +206,28 @@ class _SoundManagerState extends State<SoundManager> {
         ));
   }
 
+  Widget _recordingIcon() {
+    if (_isRecording) {
+      return Icon(Icons.pause, color: Colors.black);
+    } else if (_recordingInitialized) {
+      return Icon(Icons.play_arrow, color: Colors.black);
+    }
+    return Icon(Icons.fiber_manual_record, color: Colors.red);
+  }
+
   Widget playerControls() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildCircleButton(Icon(Icons.fiber_manual_record, color: Colors.red),
-            _startRecording),
-        _buildCircleButton(
-            Icon(_isPlaying ? Icons.pause : Icons.play_arrow,
-                color: Colors.black), () {
-          setState(() {
-            _isPlaying ? _pause() : _play();
-          });
+        _buildCircleButton(_recordingIcon(), () {
+          _isRecording ? _pauseRecording() : _startRecording();
         }),
-        _buildCircleButton(Icon(Icons.stop, color: Colors.black), _stop),
-        _buildCircleButton(Icon(Icons.stop, color: Colors.red), _stopRecording),
+        _buildCircleButton(
+            Icon(Icons.stop,
+                color: _recordingInitialized
+                    ? Colors.red
+                    : Colors.red.withOpacity(0.5)),
+            _recordingInitialized ? _stopRecording : null),
       ],
     );
   }
@@ -233,7 +240,9 @@ class _SoundManagerState extends State<SoundManager> {
   Widget _buildCircleButton(Icon icon, Function onPressedAction) {
     return CircleAvatar(
         radius: 30,
-        backgroundColor: Theme.of(context).accentColor,
+        backgroundColor: (onPressedAction == null)
+            ? Theme.of(context).accentColor.withOpacity(0.5)
+            : Theme.of(context).accentColor,
         child: IconButton(
             splashColor: Theme.of(context).accentColor,
             highlightColor: Theme.of(context).accentColor,

@@ -54,6 +54,10 @@ class RecordingBrowser extends StatefulWidget {
 
 class _RecordingBrowserState extends State<RecordingBrowser> {
   final _biggerFont = TextStyle(fontSize: 18.0);
+  var _track = Track.fromAsset('assets/sample1.aac');
+  var _player = SoundPlayer.noUI();
+  var _isPlaying =
+  false; // player.isPlaying is async, so this workaround will update widget state properly
 
 
   @override
@@ -61,11 +65,44 @@ class _RecordingBrowserState extends State<RecordingBrowser> {
     return _buildRecordings();
   }
 
+  void loadTrack(String path) {
+    _track = Track.fromFile(path, mediaFormat: WellKnownMediaFormats.adtsAac);
+  }
+
   Future<List<FileSystemEntity>> _recordingDirContents() async {
     var dir;
     await SoundManager().getRecordingDirectory().then((value) => dir = value);
     var files = Directory.fromUri(Uri.parse(dir)).listSync();
     return files;
+  }
+
+  void _play() {
+    if (_player.isStopped) {
+      _player = SoundPlayer.noUI();
+    }
+    if (_player.isPaused) {
+      _player.resume();
+    } else {
+      _player.play(_track);
+      print(_track.path);
+    }
+    _isPlaying = true;
+  }
+
+  void _pause() {
+    if (_isPlaying) {
+      _player.pause();
+      _isPlaying = false;
+    }
+  }
+
+  void _stop() {
+    _pause();
+    _player.stop();
+    _player.release();
+    setState(() {
+      // TODO
+    });
   }
 
   Widget _buildRecordings() {
@@ -80,12 +117,12 @@ class _RecordingBrowserState extends State<RecordingBrowser> {
               if (snapshot.hasError)
                 return new Text('Error: ${snapshot.error}');
               else
-                return createListView(context, snapshot);
+                return _createListView(context, snapshot);
           }
         });
   }
 
-  Widget createListView(BuildContext context, AsyncSnapshot snapshot) {
+  Widget _createListView(BuildContext context, AsyncSnapshot snapshot) {
     List<FileSystemEntity> files = snapshot.data;
     return new ListView.builder(
       itemCount: files.length,
@@ -97,11 +134,13 @@ class _RecordingBrowserState extends State<RecordingBrowser> {
                 title: new Text(basename(file.path)),
                 trailing: FutureBuilder(
                     future: SoundManager().getDurationFromPath(file.path),
-                    initialData: "00:00",
+                    initialData: "0:00:00",
                     builder:
                         (BuildContext context, AsyncSnapshot<String> text) {
-                      return text.data != null ? Text(text.data) : Text('hej');
-                    })),
+                      return Text(text.data);
+                    }),
+             // onTap: () =>  SoundManagerState().loadTrack(file.path),
+            ),
             new Divider(
               height: 2.0,
             ),
