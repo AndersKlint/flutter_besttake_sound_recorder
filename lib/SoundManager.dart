@@ -194,15 +194,28 @@ class SoundManagerState extends State<SoundManager> {
     return Container(
         padding: const EdgeInsets.only(top: 80, bottom: 80),
         child: Center(
-          child: Text(
-            (_recorder.duration.toString().length > 6)
-                ? _recorder.duration.toString().substring(0, 7)
-                : '0:00:00',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 40,
-            ),
+          child: StreamBuilder<RecordingDisposition>(
+            stream: _recorder.dispositionStream(),
+            builder: (BuildContext context, AsyncSnapshot<RecordingDisposition> snapshot) {
+              if (snapshot.hasData) {
+                return Text( snapshot.data.duration.toString().substring(0,7),
+                  style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 40,
+                ));
+              }
+              else {
+                return Text( '0:00:00',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 40,
+                    ));
+              }
+            }
           ),
+
+
+       //   ),
         ));
   }
 
