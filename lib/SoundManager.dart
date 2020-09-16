@@ -12,14 +12,6 @@ class SoundManager extends StatefulWidget {
   @override
   SoundManagerState createState() => SoundManagerState();
 
-  Future<String> getDurationFromPath(String path) async {
-    var track =
-        Track.fromFile(path, mediaFormat: WellKnownMediaFormats.adtsAac);
-    String duration;
-    await track.duration
-        .then((value) => duration = value.toString().substring(0, 7));
-    return duration;
-  }
 
   Future<String> getRecordingDirectory() async {
     requestPermission(Permission.storage);
@@ -58,6 +50,7 @@ class SoundManager extends StatefulWidget {
 
 class SoundManagerState extends State<SoundManager> {
   var _recorder = SoundRecorder();
+  var recording;
   var _isRecording = false;
   var _recordingInitialized = false;
 
@@ -142,17 +135,14 @@ class SoundManagerState extends State<SoundManager> {
     } else {
       _recorder = SoundRecorder();
       if (await Permission.microphone.request().isGranted) {
-        var recording = Track.tempFile(WellKnownMediaFormats.adtsAac);
+        recording = Track.tempFile(WellKnownMediaFormats.adtsAac);
         var recTrack = Track.fromFile(recording,
             mediaFormat: WellKnownMediaFormats.adtsAac);
-        _recorder.onStopped = ({wasUser}) {
-          _saveRecordingAlert(recording);
-          _recorder.release();
-          _recordingInitialized = false;
-        };
+
         await _recorder.record(recTrack);
-        _recordingInitialized = true;
+
         setState(() {
+          _recordingInitialized = true;
           _isRecording = true;
         });
       } else {
@@ -185,37 +175,41 @@ class SoundManagerState extends State<SoundManager> {
       await _recorder.resume();
     }
     await _recorder.stop();
+    _saveRecordingAlert(recording);
     setState(() {
       _isRecording = false;
+      _recorder.release();
+      _recordingInitialized = false;
     });
   }
 
   Widget buildTimeStamp() {
+    Duration interval = const Duration(milliseconds: 1000);
     return Container(
         padding: const EdgeInsets.only(top: 80, bottom: 80),
         child: Center(
           child: StreamBuilder<RecordingDisposition>(
-            stream: _recorder.dispositionStream(),
-            builder: (BuildContext context, AsyncSnapshot<RecordingDisposition> snapshot) {
-              if (snapshot.hasData) {
-                return Text( snapshot.data.duration.toString().substring(0,7),
-                  style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 40,
-                ));
-              }
-              else {
-                return Text( '0:00:00',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 40,
-                    ));
-              }
-            }
-          ),
+              stream: _recordingInitialized
+                  ? _recorder.dispositionStream(interval: interval)
+                  : null,
+              builder: (BuildContext context,
+                  AsyncSnapshot<RecordingDisposition> snapshot) {
+                if (snapshot.hasData) {
+                  return Text(snapshot.data.duration.toString().substring(0, 7),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 40, //snapshot.data.decibels,
+                      ));
+                } else {
+                  return Text('0:00:00',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 40,
+                      ));
+                }
+              }),
 
-
-       //   ),
+          //   ),
         ));
   }
 
