@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:best_take_sound_recorder/main.dart';
 import 'package:flutter/material.dart';
 import 'package:sounds/sounds.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -8,10 +9,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:rflutter_alert/rflutter_alert.dart';
 
-class SoundManager extends StatefulWidget {
-  @override
-  SoundManagerState createState() => SoundManagerState();
+class SoundRecorderWidget extends StatefulWidget {
+  final VoidCallback onToggleRecordingBrowser;
 
+  SoundRecorderWidget({@required this.onToggleRecordingBrowser});
+
+  @override
+  SoundRecorderWidgetState createState() => SoundRecorderWidgetState();
 
   Future<String> getRecordingDirectory() async {
     requestPermission(Permission.storage);
@@ -48,16 +52,17 @@ class SoundManager extends StatefulWidget {
   }
 }
 
-class SoundManagerState extends State<SoundManager> {
+class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
   var _recorder = SoundRecorder();
   var recording;
   var _isRecording = false;
   var _recordingInitialized = false;
 
+
   Future<bool> _saveRecording(String tempRecordingPath, String filename) async {
     filename += '.aac';
     String dir;
-    await SoundManager().getRecordingDirectory().then((value) => dir = value);
+    await widget.getRecordingDirectory().then((value) => dir = value);
     if (dir != null) {
       String filepath = '$dir/$filename';
       await File(tempRecordingPath).copy(filepath);
@@ -146,7 +151,7 @@ class SoundManagerState extends State<SoundManager> {
           _isRecording = true;
         });
       } else {
-        await SoundManager().requestPermission(Permission.microphone);
+        await SoundRecorderWidget().requestPermission(Permission.microphone);
         Fluttertoast.showToast(
             msg:
                 "Failed to start recording: permission to access microphone denied.",
@@ -186,7 +191,7 @@ class SoundManagerState extends State<SoundManager> {
   Widget buildTimeStamp() {
     Duration interval = const Duration(milliseconds: 1000);
     return Container(
-        padding: const EdgeInsets.only(top: 80, bottom: 80),
+        padding: const EdgeInsets.only(bottom: 30),
         child: Center(
           child: StreamBuilder<RecordingDisposition>(
               stream: _recordingInitialized
@@ -222,7 +227,7 @@ class SoundManagerState extends State<SoundManager> {
     return Icon(Icons.fiber_manual_record, color: Colors.red);
   }
 
-  Widget playerControls() {
+  Widget recorderControlsWidget() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -235,13 +240,22 @@ class SoundManagerState extends State<SoundManager> {
                     ? Colors.red
                     : Colors.red.withOpacity(0.5)),
             _recordingInitialized ? _stopRecording : null),
+        _buildCircleButton(Icon(Icons.menu), () {
+          widget.onToggleRecordingBrowser();
+        }),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [buildTimeStamp(), playerControls()]);
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Column(children: [
+        buildTimeStamp(),
+        recorderControlsWidget()
+      ]),
+    );
   }
 
   Widget _buildCircleButton(Icon icon, Function onPressedAction) {
