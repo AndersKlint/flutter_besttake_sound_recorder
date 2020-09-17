@@ -108,7 +108,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor,
+          color: Colors.white.withOpacity(0.0),//Theme.of(context).primaryColor,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(36),
             topRight: Radius.circular(36),
@@ -140,7 +140,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                     return Text('00:00');
                   }
                 }),
-            Expanded(child: _seekBarWidget()),
+            Expanded(child: _seekBarWidget(context)),
             FutureBuilder(
                 future: widget.getDuration(_track),
                 initialData: "00:00",
@@ -153,13 +153,15 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     );
   }
 
-  Widget _seekBarWidget() {
+  Widget _seekBarWidget(BuildContext context) {
     return StreamBuilder<PlaybackDisposition>(
         stream: _player.dispositionStream(),
         builder: (BuildContext context,
             AsyncSnapshot<PlaybackDisposition> snapshot) {
           if (snapshot.hasData) {
             return Slider(
+              inactiveColor: Colors.black45,
+                activeColor: Theme.of(context).accentColor,
                 value: snapshot.data.position.inMilliseconds.toDouble(),
                 min: 0,
                 max: snapshot.data.duration.inMilliseconds.toDouble(),
@@ -171,7 +173,6 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                 });
           } else {
             return Slider(value: 0);
-            ;
           }
         });
   }
@@ -213,13 +214,13 @@ class _RecordingBrowserState extends State<RecordingBrowser> {
   Widget _createListView(BuildContext context, AsyncSnapshot snapshot) {
     List<FileSystemEntity> files = snapshot.data;
     return Container(
-        height: MediaQuery.of(context).size.height / 2, // Expanded would be better but doesn't work with ExpansionTile.
+        height: MediaQuery.of(context).size.height / 2 - 50, // Expanded would be better but doesn't work with ExpansionTile.
         margin: EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          color: Theme.of(context).accentColor,
-          //borderRadius: BorderRadius.only(
-          //  topLeft: Radius.circular(36),
-          // topRight: Radius.circular(36))
+          color: Theme.of(context).accentColor.withOpacity(0.4),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(8),
+            topRight: Radius.circular(8))
         ),
         child: new ListView.builder(
           itemCount: files == null ? 0 : files.length,
@@ -231,7 +232,7 @@ class _RecordingBrowserState extends State<RecordingBrowser> {
                   title: new Text(basename(file.path)),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                     IconButton(
-                      icon: new Icon(Icons.play_arrow, color: Colors.black),
+                      icon: new Icon(Icons.play_arrow, color: Colors.white),
                       onPressed: () {
                         widget.onLoadTrack(file.path);
                       },
@@ -249,6 +250,8 @@ class _RecordingBrowserState extends State<RecordingBrowser> {
                 ),
                 new Divider(
                   height: 2.0,
+                  color: Colors.white10,
+                  thickness: 0,
                 ),
               ],
             );

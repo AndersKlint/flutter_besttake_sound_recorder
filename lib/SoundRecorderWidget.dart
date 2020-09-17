@@ -57,7 +57,20 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
   var recording;
   var _isRecording = false;
   var _recordingInitialized = false;
+  var recordingBrowserExpanded = false;
 
+  double _getTimestampSpacing() {
+    double height = MediaQuery.of(context).size.height;
+    var padding = MediaQuery.of(context).padding;
+
+    if (!recordingBrowserExpanded) {
+      // height without status and toolbar
+      var activeHeight = height - padding.top - kToolbarHeight;
+      return activeHeight / 2 - 100;
+    } else {
+      return 10.0;
+    }
+  }
 
   Future<bool> _saveRecording(String tempRecordingPath, String filename) async {
     filename += '.aac';
@@ -188,10 +201,10 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
     });
   }
 
-  Widget buildTimeStamp() {
+  Widget buildTimeStamp(BuildContext context) {
     Duration interval = const Duration(milliseconds: 1000);
     return Container(
-        padding: const EdgeInsets.only(bottom: 30),
+        padding: const EdgeInsets.only(bottom: 20),
         child: Center(
           child: StreamBuilder<RecordingDisposition>(
               stream: _recordingInitialized
@@ -203,18 +216,18 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
                   return Text(snapshot.data.duration.toString().substring(0, 7),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
+                        color: Theme.of(context).accentColor,
                         fontSize: 40, //snapshot.data.decibels,
                       ));
                 } else {
                   return Text('0:00:00',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
+                        color: Theme.of(context).accentColor,
                         fontSize: 40,
                       ));
                 }
               }),
-
-          //   ),
         ));
   }
 
@@ -231,17 +244,20 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildCircleButton(_recordingIcon(), () {
+        _buildCircleButton(_recordingIcon(), 'Record', () {
           _isRecording ? _pauseRecording() : _startRecording();
         }),
+        _buildCircleButton(Icon(Icons.movie), 'Record take', () {}),
         _buildCircleButton(
             Icon(Icons.stop,
                 color: _recordingInitialized
                     ? Colors.red
                     : Colors.red.withOpacity(0.5)),
+            'Stop',
             _recordingInitialized ? _stopRecording : null),
-        _buildCircleButton(Icon(Icons.menu), () {
+        _buildCircleButton(Icon(Icons.menu), 'Browse', () {
           widget.onToggleRecordingBrowser();
+          recordingBrowserExpanded = !recordingBrowserExpanded;
         }),
       ],
     );
@@ -249,25 +265,34 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Column(children: [
-        buildTimeStamp(),
-        recorderControlsWidget()
-      ]),
-    );
+    return Column(children: [
+      buildTimeStamp(context),
+      AnimatedContainer(
+        height: _getTimestampSpacing(),
+        duration: Duration(seconds: 1),
+        curve: Curves.fastOutSlowIn,
+      ),
+      recorderControlsWidget()
+    ]);
   }
 
-  Widget _buildCircleButton(Icon icon, Function onPressedAction) {
-    return CircleAvatar(
-        radius: 30,
-        backgroundColor: (onPressedAction == null)
-            ? Theme.of(context).accentColor.withOpacity(0.5)
-            : Theme.of(context).accentColor,
-        child: IconButton(
-            splashColor: Theme.of(context).accentColor,
-            highlightColor: Theme.of(context).accentColor,
-            icon: icon,
-            onPressed: onPressedAction));
+  Widget _buildCircleButton(
+      Icon icon, String description, Function onPressedAction) {
+    return Column(
+      children: [
+        CircleAvatar(
+            radius: 30,
+            backgroundColor: (onPressedAction == null)
+                ? Theme.of(context).accentColor.withOpacity(0.5)
+                : Theme.of(context).accentColor,
+            child: IconButton(
+                splashColor: Theme.of(context).accentColor,
+                highlightColor: Theme.of(context).accentColor,
+                icon: icon,
+                onPressed: onPressedAction)),
+        SizedBox(height: 5),
+        Text(description)
+      ],
+    );
   }
 }
