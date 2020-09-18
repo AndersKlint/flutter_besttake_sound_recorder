@@ -217,7 +217,7 @@ class _RecordingBrowserState extends State<RecordingBrowser> {
         height: MediaQuery.of(context).size.height / 2 - 50, // Expanded would be better but doesn't work with ExpansionTile.
         margin: EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          color: Theme.of(context).accentColor.withOpacity(0.4),
+          color: Theme.of(context).accentColor.withOpacity(0.2),
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(8),
             topRight: Radius.circular(8))

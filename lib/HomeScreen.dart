@@ -24,32 +24,42 @@ class _HomeScreenWidgetState extends State<HomeScreenWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
         //appBar: AppBar(
-         // title: Text('Welcome to Flutter'),
+        // title: Text('Welcome to Flutter'),
         //),
-        body: ParticleBackground(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Container(
-                padding: EdgeInsets.symmetric(vertical: 30.0),
-                child: SingleChildScrollView(
-                    child: SoundRecorderWidget(
-                  onToggleRecordingBrowser: () => _toggleRecordingBrowser(),
+        body: Container(
+      decoration: BoxDecoration(
+          gradient: LinearGradient(
+              colors: [
+            Theme.of(context).primaryColorDark,
+            Theme.of(context).primaryColorLight
+          ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              tileMode: TileMode.clamp)),
+      child: ParticleBackground(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(vertical: 30.0),
+              child: SingleChildScrollView(
+                  child: SoundRecorderWidget(
+                onToggleRecordingBrowser: () => _toggleRecordingBrowser(),
+              )),
+            ),
+            ExpandedSection(
+                expand: showRecordingBrowser,
+                child: Container(
+                  child: AudioPlayerWidget(),
                 )),
-              ),
-              ExpandedSection(
-                  expand: showRecordingBrowser,
-                  child: Container(
-                    child: AudioPlayerWidget(),
-                  )),
-            ],
-          ),
-        ));
-
+          ],
+        ),
+      ),
+    ));
   }
 }
 
-class ParticleBackground extends StatefulWidget{
+class ParticleBackground extends StatefulWidget {
   final Widget child;
 
   ParticleBackground({this.child});
@@ -58,16 +68,16 @@ class ParticleBackground extends StatefulWidget{
   _ParticleBackgroundState createState() => _ParticleBackgroundState();
 }
 
-class _ParticleBackgroundState extends State<ParticleBackground> with TickerProviderStateMixin {
-
+class _ParticleBackgroundState extends State<ParticleBackground>
+    with TickerProviderStateMixin {
   var particleOptions = ParticleOptions(
-    baseColor: Colors.cyan,
+    baseColor: Colors.white,
     spawnOpacity: 0.0,
     opacityChangeRate: 0.4,
-    minOpacity: 0.2,
-    maxOpacity: 0.6,
-    spawnMinSpeed: 30.0,
-    spawnMaxSpeed: 70.0,
+    minOpacity: 0.1,
+    maxOpacity: 0.4,
+    spawnMinSpeed: 20.0,
+    spawnMaxSpeed: 50.0,
     spawnMinRadius: 7.0,
     spawnMaxRadius: 15.0,
     particleCount: 30,
@@ -82,4 +92,3 @@ class _ParticleBackgroundState extends State<ParticleBackground> with TickerProv
     );
   }
 }
-

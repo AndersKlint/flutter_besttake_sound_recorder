@@ -95,25 +95,37 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
     Alert(
         context: context,
         title: 'Save recording',
+        style: AlertStyle(
+            backgroundColor: Colors.white.withOpacity(0.6),
+            overlayColor: Theme.of(context).primaryColorDark.withOpacity(0.6),
+            titleStyle: Theme.of(context).textTheme.headline6,
+            descStyle: Theme.of(context).textTheme.bodyText1,
+            isCloseButton: false),
         content: Form(
           key: _formKey,
           child: TextFormField(
             validator: (value) {
               if (value.isEmpty) {
-                return "please enter a filename";
+                return "Please enter a valid filename";
               }
               return null;
             },
             onSaved: (value) {
               _fieldRes = value;
             },
-            decoration:
-                InputDecoration(icon: Icon(Icons.save), hintText: 'filename'),
+            decoration: InputDecoration(
+                icon: Icon(Icons.save),
+                prefixText: 'recording_',
+                helperText: 'filename',
+                helperStyle: Theme.of(context).textTheme.bodyText1,
+                prefixStyle: Theme.of(context).textTheme.bodyText1),
             controller: myController,
           ),
         ),
         buttons: [
           DialogButton(
+            border: Border.all(color: Colors.black.withOpacity(0.5)),
+            color: Theme.of(context).primaryColorLight.withOpacity(0.5),
             onPressed: () => {Navigator.pop(context)},
             child: Text(
               "Delete",
@@ -121,6 +133,8 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
             ),
           ),
           DialogButton(
+            border: Border.all(color: Colors.black.withOpacity(0.5)),
+            color: Theme.of(context).primaryColorLight.withOpacity(0.5),
             onPressed: () async {
               if (_formKey.currentState.validate()) {
                 _formKey.currentState.save();
@@ -202,7 +216,7 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
   }
 
   Widget buildTimeStamp(BuildContext context) {
-    Duration interval = const Duration(milliseconds: 1000);
+    Duration interval = const Duration(milliseconds: 100);
     return Container(
         padding: const EdgeInsets.only(bottom: 20),
         child: Center(
