@@ -53,11 +53,26 @@ class SoundRecorderWidget extends StatefulWidget {
 }
 
 class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
-  var _recorder = SoundRecorder();
+  var _recorder;
   var recording;
   var _isRecording = false;
   var _recordingInitialized = false;
   var recordingBrowserExpanded = false;
+  var _timestampShouldReset = false;
+  final _alertController = TextEditingController();
+
+  @override
+  void initState() {
+    _recorder = SoundRecorder();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _recorder.release();
+    _alertController.dispose();
+    super.dispose();
+  }
 
   double _getTimestampSpacing() {
     double height = MediaQuery.of(context).size.height;
@@ -86,17 +101,14 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
     return Future.value(false);
   }
 
-  String _saveRecordingAlert(String tempRecordingPath) {
-    String _fieldRes = '';
+  Future<void> _saveRecordingAlert(String tempRecordingPath) async {
     GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-    final myController = TextEditingController();
-
-    Alert(
+    await Alert(
         context: context,
         title: 'Save recording',
         style: AlertStyle(
-            backgroundColor: Colors.white.withOpacity(0.6),
+            backgroundColor: Colors.black.withOpacity(0.6),
             overlayColor: Theme.of(context).primaryColorDark.withOpacity(0.6),
             titleStyle: Theme.of(context).textTheme.headline6,
             descStyle: Theme.of(context).textTheme.bodyText1,
@@ -110,22 +122,19 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
               }
               return null;
             },
-            onSaved: (value) {
-              _fieldRes = value;
-            },
             decoration: InputDecoration(
-                icon: Icon(Icons.save),
+                icon: Icon(Icons.save, color: Theme.of(context).accentColor),
                 prefixText: 'recording_',
                 helperText: 'filename',
-                helperStyle: Theme.of(context).textTheme.bodyText1,
+                helperStyle: Theme.of(context).textTheme.caption,
                 prefixStyle: Theme.of(context).textTheme.bodyText1),
-            controller: myController,
+            controller: _alertController,
           ),
         ),
         buttons: [
           DialogButton(
             border: Border.all(color: Colors.black.withOpacity(0.5)),
-            color: Theme.of(context).primaryColorLight.withOpacity(0.5),
+            color: Theme.of(context).accentColor.withOpacity(1.0),
             onPressed: () => {Navigator.pop(context)},
             child: Text(
               "Delete",
@@ -134,13 +143,13 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
           ),
           DialogButton(
             border: Border.all(color: Colors.black.withOpacity(0.5)),
-            color: Theme.of(context).primaryColorLight.withOpacity(0.5),
+            color: Theme.of(context).accentColor.withOpacity(1.0),
             onPressed: () async {
               if (_formKey.currentState.validate()) {
                 _formKey.currentState.save();
 
                 var _response;
-                await _saveRecording(tempRecordingPath, myController.text)
+                await _saveRecording(tempRecordingPath, _alertController.text)
                     .then((value) => _response = value);
                 if (_response) {
                   Navigator.pop(context, false);
@@ -154,8 +163,7 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
           )
         ]).show();
 
-    // myController.dispose();
-    return _fieldRes;
+    //myController.dispose();
   }
 
   Future<void> _startRecording() async {
@@ -165,15 +173,14 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
         _isRecording = true;
       });
     } else {
-      _recorder = SoundRecorder();
       if (await Permission.microphone.request().isGranted) {
         recording = Track.tempFile(WellKnownMediaFormats.adtsAac);
         var recTrack = Track.fromFile(recording,
             mediaFormat: WellKnownMediaFormats.adtsAac);
-
         await _recorder.record(recTrack);
 
         setState(() {
+          _timestampShouldReset = false;
           _recordingInitialized = true;
           _isRecording = true;
         });
@@ -207,11 +214,11 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
       await _recorder.resume();
     }
     await _recorder.stop();
-    _saveRecordingAlert(recording);
+    await _saveRecordingAlert(recording);
     setState(() {
       _isRecording = false;
-      _recorder.release();
       _recordingInitialized = false;
+      _timestampShouldReset = true;
     });
   }
 
@@ -226,7 +233,7 @@ class SoundRecorderWidgetState extends State<SoundRecorderWidget> {
                   : null,
               builder: (BuildContext context,
                   AsyncSnapshot<RecordingDisposition> snapshot) {
-                if (snapshot.hasData) {
+                if (snapshot.hasData && !_timestampShouldReset) {
                   return Text(snapshot.data.duration.toString().substring(0, 7),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
