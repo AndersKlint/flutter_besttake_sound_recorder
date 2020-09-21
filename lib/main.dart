@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 
-import 'HomeScreen.dart';
+import 'home_screen.dart';
 
 void main() {
   runApp(MyApp());

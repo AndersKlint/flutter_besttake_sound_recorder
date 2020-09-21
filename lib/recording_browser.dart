@@ -10,7 +10,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:rflutter_alert/rflutter_alert.dart';
 import 'package:path/path.dart';
 
-import 'SoundRecorderWidget.dart';
+import 'sound_recorder_widget.dart';
 
 
 class AudioPlayerWidget extends StatefulWidget {

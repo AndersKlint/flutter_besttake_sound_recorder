@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:animated_background/animated_background.dart';
 
-import 'SoundRecorderWidget.dart';
-import 'recordingBrowser.dart';
+import 'sound_recorder_widget.dart';
+import 'recording_browser.dart';
 import 'expansion_section.dart';
 
 class HomeScreenWidget extends StatefulWidget {
